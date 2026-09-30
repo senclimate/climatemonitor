@@ -1,0 +1,371 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Climate Monitor</title>
+
+<script src="https://cdn.plot.ly/plotly-3.1.0.min.js"></script>
+
+<style>
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 Helvetica, Arial, sans-serif;
+    color: #222;
+    background: #fff;
+}
+
+.container {
+    width: 94%;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+header {
+    padding: 25px 0 15px;
+    border-bottom: 1px solid #ddd;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 28px;
+}
+
+header p {
+    margin: 5px 0 0;
+    color: #666;
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 25px;
+    margin: 20px 0 10px;
+}
+
+.control-group,
+.mode-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mode-controls {
+    gap: 14px;
+}
+
+.control-label {
+    font-weight: 600;
+}
+
+select {
+    font-size: 15px;
+    padding: 6px 10px;
+    border: 1px solid #aaa;
+    border-radius: 5px;
+    background: #fff;
+}
+
+.mode-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+}
+
+.mode-checkbox input {
+    width: 15px;
+    height: 15px;
+}
+
+#plot {
+    width: 100%;
+}
+
+#loading {
+    margin: 20px 0;
+    color: #666;
+}
+
+footer {
+    margin-top: 20px;
+    padding: 15px 0 25px;
+    border-top: 1px solid #ddd;
+    color: #777;
+    font-size: 13px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<div class="container">
+<h1>Climate Monitor</h1>
+<p>Daily pantropical climate mode indices</p>
+</div>
+</header>
+
+<main class="container">
+
+<div class="controls">
+
+<div class="control-group">
+<span class="control-label">Index:</span>
+<select id="index-select">
+<option value="Nino34">Niño3.4</option>
+<option value="Nino3">Niño3</option>
+<option value="Nino4">Niño4</option>
+<option value="Nino12">Niño1+2</option>
+<option value="NPMM">NPMM</option>
+<option value="SPMM">SPMM</option>
+<option value="IOD">IOD</option>
+<option value="IODe">EIO</option>
+<option value="IODw">WIO</option>
+<option value="IOB">IOB</option>
+<option value="SIOD">SIOD</option>
+<option value="TNA">TNA</option>
+<option value="ATL3">ATL3</option>
+<option value="SASD">SASD</option>
+<option value="tropic">TropAve (20°S–20°N)</option>
+<option value="AMO_G">GlobalAve (60°S–60°N)</option>
+<option value="SouthernOcean">SouthernOcean (75°S-45°S)</option>
+</select>
+</div>
+
+<div class="mode-controls">
+<span class="control-label">Data:</span>
+
+<label class="mode-checkbox">
+<input type="checkbox" name="data-mode" value="anomaly" checked>
+Anomaly
+</label>
+
+<label class="mode-checkbox">
+<input type="checkbox" name="data-mode" value="detrended">
+Detrended
+</label>
+
+<label class="mode-checkbox">
+<input type="checkbox" name="data-mode" value="raw">
+Raw
+</label>
+</div>
+
+</div>
+
+<div id="loading">Loading climate data...</div>
+<div id="plot"></div>
+
+</main>
+
+<footer>
+<div class="container">
+
+<div class="data-info">
+<strong>Data & Methods</strong><br>
+Daily Sea Surface Temperature (SST) from
+<a href="https://www.ncei.noaa.gov/products/optimum-interpolation-sst"
+target="_blank">NOAA OISST v2.1</a> (0.25° global grid).
+Climate mode indices are calculated following
+<a href="https://doi.org/10.1038/s41586-024-07534-6"
+target="_blank">Zhao et al. (2024, Nature)</a>.
+Anomalies use the 1991–2020 climatology; detrended indices are linearly
+detrended over 1982–2025.
+</div>
+
+<br>
+
+<a href="https://senzhao.netlify.app/" target="_blank">Sen Zhao</a>
+· University of Hawaiʻi at Mānoa
+
+</div>
+</footer>
+
+
+<script>
+
+let climateData = null;
+
+const plotDiv = document.getElementById("plot");
+const loadingDiv = document.getElementById("loading");
+const indexSelect = document.getElementById("index-select");
+const modeCheckboxes = document.querySelectorAll(
+    'input[name="data-mode"]'
+);
+
+function getSelectedMode() {
+    for (const checkbox of modeCheckboxes) {
+        if (checkbox.checked) {
+            return checkbox.value;
+        }
+    }
+    return "anomaly";
+}
+
+function clone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+}
+
+function getIndexName(variable) {
+    return climateData.metadata.index_names[variable];
+}
+
+function buildFigure(variable, mode) {
+    const template = climateData.templates[mode];
+    const traceValues = climateData.values[mode][variable];
+
+    const data = template.traces.map((trace, i) => {
+        const t = clone(trace);
+        const v = traceValues[i];
+        t.y = v.y;
+
+        if (trace.meta === "latest_point") {
+            t.x = v.x;
+            t.text = v.text;
+        }
+        return t;
+    });
+
+    const layout = clone(template.layout);
+    const name = getIndexName(variable);
+
+    if (mode === "anomaly") {
+        layout.title.text = `Daily ${name} anomaly relative to 1991–2020`;
+    } else if (mode === "detrended") {
+        layout.title.text =
+            `Daily ${name} detrended anomaly relative to 1991–2020 ` +
+            `(detrended over 1982–2025)`;
+    } else {
+        layout.title.text = `Daily ${name}`;
+    }
+
+    return {data, layout};
+}
+
+function getFilename() {
+    const variable = indexSelect.value;
+    const mode = getSelectedMode();
+
+    const indexName = getIndexName(variable)
+        .replace(/[^a-zA-Z0-9]+/g, "_")
+        .replace(/^_|_$/g, "");
+
+    return `ClimateMonitor_${indexName}_${mode}`;
+}
+
+function showPlot() {
+    if (!climateData) {
+        return;
+    }
+
+    const variable = indexSelect.value;
+    const mode = getSelectedMode();
+    const fig = buildFigure(variable, mode);
+
+    Plotly.react(
+        plotDiv,
+        fig.data,
+        fig.layout,
+        {
+            responsive: true,
+            displaylogo: false,
+            modeBarButtonsToAdd: [
+                {
+                    name: "Download PNG",
+                    icon: Plotly.Icons.camera,
+                    click: function(gd) {
+                        Plotly.downloadImage(gd, {
+                            format: "png",
+                            filename: getFilename(),
+                            scale: 4
+                        });
+                    }
+                },
+                {
+                    name: "Download JPEG",
+                    icon: Plotly.Icons.camera,
+                    click: function(gd) {
+                        Plotly.downloadImage(gd, {
+                            format: "jpeg",
+                            filename: getFilename(),
+                            scale: 4
+                        });
+                    }
+                },
+                {
+                    name: "Download PDF",
+                    icon: Plotly.Icons.disk,
+                    click: function(gd) {
+                        Plotly.downloadImage(gd, {
+                            format: "pdf",
+                            filename: getFilename()
+                        });
+                    }
+                },
+                {
+                    name: "Download SVG",
+                    icon: Plotly.Icons.disk,
+                    click: function(gd) {
+                        Plotly.downloadImage(gd, {
+                            format: "svg",
+                            filename: getFilename()
+                        });
+                    }
+                }
+            ]
+        }
+    );
+}
+
+indexSelect.addEventListener("change", showPlot);
+
+modeCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener("change", function() {
+
+        if (this.checked) {
+            modeCheckboxes.forEach(other => {
+                if (other !== this) {
+                    other.checked = false;
+                }
+            });
+        } else {
+            const anyChecked = Array.from(modeCheckboxes)
+                .some(box => box.checked);
+
+            if (!anyChecked) {
+                this.checked = true;
+            }
+        }
+
+        showPlot();
+    });
+});
+
+fetch("daily_ssti.json")
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(
+                `HTTP ${response.status}: ${response.statusText}`
+            );
+        }
+        return response.json();
+    })
+    .then(data => {
+        climateData = data;
+        loadingDiv.style.display = "none";
+        showPlot();
+    })
+    .catch(error => {
+        console.error("Climate data loading error:", error);
+        loadingDiv.textContent =
+            "Unable to load climate data. Check the browser console.";
+    });
+
+</script>
+
+</body>
+</html>
