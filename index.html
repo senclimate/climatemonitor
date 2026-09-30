@@ -297,16 +297,6 @@ function showPlot() {
                     }
                 },
                 {
-                    name: "Download PDF",
-                    icon: Plotly.Icons.disk,
-                    click: function(gd) {
-                        Plotly.downloadImage(gd, {
-                            format: "pdf",
-                            filename: getFilename()
-                        });
-                    }
-                },
-                {
                     name: "Download SVG",
                     icon: Plotly.Icons.disk,
                     click: function(gd) {

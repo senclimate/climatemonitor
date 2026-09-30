@@ -164,16 +164,16 @@ def make_fig(variable, mode):
         width=1000,
         height=500,
     )
-    fig.update_layout(
-        font=dict(size=16),
-        title=dict(font=dict(size=18)),
-        legend=dict(font=dict(size=14), title=dict(font=dict(size=15))),
-        xaxis=dict(title=dict(font=dict(size=14)), tickfont=dict(size=12)),
-        yaxis=dict(
-            title=dict(text=config["y_title"], font=dict(size=14)),
-            tickfont=dict(size=12),
-        ),
-    )
+    # fig.update_layout(
+    #     font=dict(size=16),
+    #     title=None,
+    #     legend=dict(font=dict(size=14), title=dict(font=dict(size=15))),
+    #     xaxis=dict(title=dict(font=dict(size=14)), tickfont=dict(size=12)),
+    #     yaxis=dict(
+    #         title=dict(text=config["y_title"], font=dict(size=14)),
+    #         tickfont=dict(size=12),
+    #     ),
+    # )
     return fig
 
 def make_template(fig):
@@ -583,16 +583,6 @@ function showPlot() {
                             format: "jpeg",
                             filename: getFilename(),
                             scale: 4
-                        });
-                    }
-                },
-                {
-                    name: "Download PDF",
-                    icon: Plotly.Icons.disk,
-                    click: function(gd) {
-                        Plotly.downloadImage(gd, {
-                            format: "pdf",
-                            filename: getFilename()
                         });
                     }
                 },
