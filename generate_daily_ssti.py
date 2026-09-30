@@ -18,7 +18,8 @@ MYHOME = os.getenv("MYHOME")
 os.environ["BROWSER_PATH"] = f"{MYHOME}/apps/chrome-linux64/chrome"
 
 this_year = date.today().year
-overwrite = False
+overwrite = True
+overwrite_json = False
 
 # ============================================================
 # Step 1: Download daily OISST
@@ -27,7 +28,7 @@ overwrite = False
 sst_dir = f"{MYHOME}/data/sst/OISSTv2"
 day_down_script = f"{sst_dir}/down_day_oisst.sh"
 
-# os.system(f"bash {day_down_script}")
+os.system(f"bash {day_down_script}")
 
 # ============================================================
 # Step 2: Calculate daily SST indices
@@ -47,6 +48,7 @@ for yr in range(1982, this_year + 1):
     sst_file = f"{sst_dir}/sst.day.mean.{yr}.nc"
 
     with xr.open_dataset(sst_file) as ds:
+        ds = ds.load()
         ssti_ds = (
             sp.global_sst_indices(ds["sst"])
             .rename({"SASD2": "SASD"})
@@ -139,7 +141,6 @@ data_modes = {
 # ============================================================
 
 json_file = "daily_ssti.json"
-overwrite_json = True
 
 def clean_values(values):
     if values is None:
