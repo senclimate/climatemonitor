@@ -19,7 +19,7 @@ os.environ["BROWSER_PATH"] = f"{MYHOME}/apps/chrome-linux64/chrome"
 
 this_year = date.today().year
 overwrite = True
-overwrite_json = False
+overwrite_json = True
 
 # ============================================================
 # Step 1: Download daily OISST
